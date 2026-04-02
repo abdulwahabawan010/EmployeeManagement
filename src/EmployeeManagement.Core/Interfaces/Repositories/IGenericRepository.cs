@@ -11,6 +11,7 @@ public interface IGenericRepository<T> where T : class
     // READ operations
     Task<T?> GetByIdAsync(int id);
     Task<IEnumerable<T>> GetAllAsync();
+    
     Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate);
 
     // READ with Include (for related data)
