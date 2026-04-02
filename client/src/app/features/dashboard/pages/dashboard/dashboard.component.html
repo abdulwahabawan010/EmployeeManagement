@@ -1,0 +1,109 @@
+<div class="dashboard">
+  <h2 class="page-heading">Dashboard</h2>
+
+  <!-- Stats Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon employees">👥</div>
+      <div class="stat-content">
+        <span class="stat-value">{{ totalEmployees() }}</span>
+        <span class="stat-label">Total Employees</span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon departments">🏢</div>
+      <div class="stat-content">
+        <span class="stat-value">{{ totalDepartments() }}</span>
+        <span class="stat-label">Departments</span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon active">✓</div>
+      <div class="stat-content">
+        <span class="stat-value">{{ activeEmployees() }}</span>
+        <span class="stat-label">Active Employees</span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon inactive">⏸</div>
+      <div class="stat-content">
+        <span class="stat-value">{{ totalEmployees() - activeEmployees() }}</span>
+        <span class="stat-label">Inactive</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="section">
+    <h3 class="section-title">Quick Actions</h3>
+    <div class="actions-grid">
+      <a routerLink="/employees/new" class="action-card">
+        <span class="action-icon">➕</span>
+        <span class="action-label">Add Employee</span>
+      </a>
+      <a routerLink="/departments/new" class="action-card">
+        <span class="action-icon">🏢</span>
+        <span class="action-label">Add Department</span>
+      </a>
+      <a routerLink="/employees" class="action-card">
+        <span class="action-icon">📋</span>
+        <span class="action-label">View All Employees</span>
+      </a>
+      <a routerLink="/departments" class="action-card">
+        <span class="action-icon">📁</span>
+        <span class="action-label">View All Departments</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Recent Employees -->
+  <div class="section">
+    <div class="section-header">
+      <h3 class="section-title">Recent Employees</h3>
+      <a routerLink="/employees" class="view-all">View All →</a>
+    </div>
+
+    @if (isLoading()) {
+      <div class="loading">Loading...</div>
+    } @else if (recentEmployees().length === 0) {
+      <div class="empty-state">
+        <p>No employees yet. <a routerLink="/employees/new">Add your first employee</a></p>
+      </div>
+    } @else {
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Department</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (employee of recentEmployees(); track employee.id) {
+              <tr>
+                <td>
+                  <div class="employee-name">
+                    <span class="avatar">{{ employee.firstName.charAt(0) }}</span>
+                    {{ employee.fullName }}
+                  </div>
+                </td>
+                <td>{{ employee.email }}</td>
+                <td>{{ employee.departmentName }}</td>
+                <td>
+                  <span class="status-badge" [class]="getStatusClass(employee.status)">
+                    {{ getStatusLabel(employee.status) }}
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>

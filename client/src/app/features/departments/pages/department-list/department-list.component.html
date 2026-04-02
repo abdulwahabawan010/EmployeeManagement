@@ -1,0 +1,98 @@
+<div class="department-list">
+  <div class="page-header">
+    <h2>Departments</h2>
+    <a routerLink="/departments/new" class="btn btn-primary">
+      + Add Department
+    </a>
+  </div>
+
+  <!-- Error Alert -->
+  @if (error()) {
+    <div class="alert alert-error">
+      {{ error() }}
+      <button class="alert-close" (click)="error.set(null)">×</button>
+    </div>
+  }
+
+  <!-- Loading State -->
+  @if (isLoading()) {
+    <div class="loading-container">
+      <div class="spinner"></div>
+      <p>Loading departments...</p>
+    </div>
+  } @else if (departments().length === 0) {
+    <!-- Empty State -->
+    <div class="empty-state">
+      <div class="empty-icon">🏢</div>
+      <h3>No Departments Yet</h3>
+      <p>Get started by creating your first department.</p>
+      <a routerLink="/departments/new" class="btn btn-primary">
+        Create Department
+      </a>
+    </div>
+  } @else {
+    <!-- Department Table -->
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Employees</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (dept of departments(); track dept.id) {
+            <tr>
+              <td>
+                <strong>{{ dept.name }}</strong>
+              </td>
+              <td>{{ dept.description || '-' }}</td>
+              <td>
+                <span class="employee-count">{{ dept.employeeCount }}</span>
+              </td>
+              <td>
+                <span class="status-badge" [class.active]="dept.isActive" [class.inactive]="!dept.isActive">
+                  {{ dept.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+              <td>{{ dept.createdAt | date:'mediumDate' }}</td>
+              <td>
+                <div class="actions">
+                  <a [routerLink]="['/departments', dept.id, 'edit']" class="btn-icon" title="Edit">
+                    ✏️
+                  </a>
+                  <button class="btn-icon delete" (click)="confirmDelete(dept.id)" title="Delete">
+                    🗑️
+                  </button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Delete Confirmation Row -->
+            @if (deleteId() === dept.id) {
+              <tr class="confirm-row">
+                <td colspan="6">
+                  <div class="confirm-delete">
+                    <span>Are you sure you want to delete "{{ dept.name }}"?</span>
+                    <div class="confirm-actions">
+                      <button class="btn btn-sm btn-secondary" (click)="cancelDelete()">
+                        Cancel
+                      </button>
+                      <button class="btn btn-sm btn-danger" (click)="deleteDepartment(dept.id)">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

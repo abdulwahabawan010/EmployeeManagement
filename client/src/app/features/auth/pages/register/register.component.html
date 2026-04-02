@@ -1,0 +1,125 @@
+<form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="register-form">
+  <h2>Create Account</h2>
+  <p class="subtitle">Join Employee Management System</p>
+
+  <!-- Error Alert -->
+  @if (errorMessage) {
+    <div class="alert alert-error">
+      {{ errorMessage }}
+    </div>
+  }
+
+  <!-- Username Field -->
+  <div class="form-group">
+    <label for="username">Username</label>
+    <input
+      type="text"
+      id="username"
+      formControlName="username"
+      placeholder="Choose a username"
+      [class.invalid]="username?.invalid && username?.touched"
+    />
+    @if (username?.invalid && username?.touched) {
+      <span class="error-text">
+        @if (username?.errors?.['required']) {
+          Username is required
+        } @else if (username?.errors?.['minlength']) {
+          Username must be at least 3 characters
+        }
+      </span>
+    }
+  </div>
+
+  <!-- Email Field -->
+  <div class="form-group">
+    <label for="email">Email</label>
+    <input
+      type="email"
+      id="email"
+      formControlName="email"
+      placeholder="Enter your email"
+      [class.invalid]="email?.invalid && email?.touched"
+    />
+    @if (email?.invalid && email?.touched) {
+      <span class="error-text">
+        @if (email?.errors?.['required']) {
+          Email is required
+        } @else if (email?.errors?.['email']) {
+          Please enter a valid email
+        }
+      </span>
+    }
+  </div>
+
+  <!-- Password Field -->
+  <div class="form-group">
+    <label for="password">Password</label>
+    <div class="password-wrapper">
+      <input
+        [type]="showPassword ? 'text' : 'password'"
+        id="password"
+        formControlName="password"
+        placeholder="Create a password"
+        [class.invalid]="password?.invalid && password?.touched"
+      />
+      <button type="button" class="toggle-password" (click)="togglePassword('password')">
+        {{ showPassword ? 'Hide' : 'Show' }}
+      </button>
+    </div>
+    @if (password?.invalid && password?.touched) {
+      <span class="error-text">
+        @if (password?.errors?.['required']) {
+          Password is required
+        } @else if (password?.errors?.['minlength']) {
+          Password must be at least 6 characters
+        }
+      </span>
+    }
+  </div>
+
+  <!-- Confirm Password Field -->
+  <div class="form-group">
+    <label for="confirmPassword">Confirm Password</label>
+    <div class="password-wrapper">
+      <input
+        [type]="showConfirmPassword ? 'text' : 'password'"
+        id="confirmPassword"
+        formControlName="confirmPassword"
+        placeholder="Confirm your password"
+        [class.invalid]="confirmPassword?.invalid && confirmPassword?.touched"
+      />
+      <button type="button" class="toggle-password" (click)="togglePassword('confirm')">
+        {{ showConfirmPassword ? 'Hide' : 'Show' }}
+      </button>
+    </div>
+    @if (confirmPassword?.invalid && confirmPassword?.touched) {
+      <span class="error-text">
+        @if (confirmPassword?.errors?.['required']) {
+          Please confirm your password
+        } @else if (confirmPassword?.errors?.['passwordMismatch']) {
+          Passwords do not match
+        }
+      </span>
+    }
+  </div>
+
+  <!-- Submit Button -->
+  <button
+    type="submit"
+    class="btn btn-primary"
+    [disabled]="isLoading"
+  >
+    @if (isLoading) {
+      <span class="spinner"></span>
+      Creating account...
+    } @else {
+      Create Account
+    }
+  </button>
+
+  <!-- Login Link -->
+  <p class="login-link">
+    Already have an account?
+    <a routerLink="/auth/login">Sign in</a>
+  </p>
+</form>

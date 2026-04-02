@@ -1,0 +1,99 @@
+<div class="department-form">
+  <div class="page-header">
+    <a routerLink="/departments" class="back-link">← Back to Departments</a>
+    <h2>{{ isEditMode ? 'Edit Department' : 'New Department' }}</h2>
+  </div>
+
+  <!-- Loading State -->
+  @if (isLoading) {
+    <div class="loading-container">
+      <div class="spinner"></div>
+      <p>Loading department...</p>
+    </div>
+  } @else {
+    <div class="form-card">
+      <!-- Error Alert -->
+      @if (error) {
+        <div class="alert alert-error">
+          {{ error }}
+          <button class="alert-close" (click)="error = null">×</button>
+        </div>
+      }
+
+      <form [formGroup]="departmentForm" (ngSubmit)="onSubmit()">
+        <!-- Name Field -->
+        <div class="form-group">
+          <label for="name">Department Name <span class="required">*</span></label>
+          <input
+            type="text"
+            id="name"
+            formControlName="name"
+            placeholder="Enter department name"
+            [class.invalid]="name?.invalid && name?.touched"
+          />
+          @if (name?.invalid && name?.touched) {
+            <span class="error-text">
+              @if (name?.errors?.['required']) {
+                Department name is required
+              } @else if (name?.errors?.['minlength']) {
+                Name must be at least 2 characters
+              } @else if (name?.errors?.['maxlength']) {
+                Name cannot exceed 100 characters
+              }
+            </span>
+          }
+        </div>
+
+        <!-- Description Field -->
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea
+            id="description"
+            formControlName="description"
+            placeholder="Enter description (optional)"
+            rows="4"
+            [class.invalid]="description?.invalid && description?.touched"
+          ></textarea>
+          @if (description?.errors?.['maxlength']) {
+            <span class="error-text">
+              Description cannot exceed 500 characters
+            </span>
+          }
+          <span class="char-count">
+            {{ departmentForm.get('description')?.value?.length || 0 }}/500
+          </span>
+        </div>
+
+        <!-- Active Status (Edit mode only) -->
+        @if (isEditMode) {
+          <div class="form-group checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" formControlName="isActive" />
+              <span class="checkbox-text">Active</span>
+            </label>
+            <span class="help-text">Inactive departments won't appear in dropdown lists</span>
+          </div>
+        }
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+          <a routerLink="/departments" class="btn btn-secondary">
+            Cancel
+          </a>
+          <button
+            type="submit"
+            class="btn btn-primary"
+            [disabled]="isSubmitting"
+          >
+            @if (isSubmitting) {
+              <span class="spinner-sm"></span>
+              Saving...
+            } @else {
+              {{ isEditMode ? 'Update Department' : 'Create Department' }}
+            }
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+</div>

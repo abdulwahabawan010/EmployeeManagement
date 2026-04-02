@@ -1,0 +1,78 @@
+<div class="layout" [class.sidebar-collapsed]="sidebarCollapsed()">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <span class="logo">EMS</span>
+      @if (!sidebarCollapsed()) {
+        <span class="logo-text">Employee Mgmt</span>
+      }
+    </div>
+
+    <nav class="sidebar-nav">
+      @for (item of navItems; track item.path) {
+        <a
+          [routerLink]="item.path"
+          routerLinkActive="active"
+          class="nav-item"
+          [title]="item.label"
+        >
+          <span class="nav-icon">{{ item.icon }}</span>
+          @if (!sidebarCollapsed()) {
+            <span class="nav-label">{{ item.label }}</span>
+          }
+        </a>
+      }
+    </nav>
+
+    <button class="sidebar-toggle" (click)="toggleSidebar()">
+      <span class="toggle-icon">{{ sidebarCollapsed() ? '→' : '←' }}</span>
+    </button>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-wrapper">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <button class="menu-toggle" (click)="toggleSidebar()">
+          ☰
+        </button>
+        <h1 class="page-title">Employee Management System</h1>
+      </div>
+
+      <div class="header-right">
+        <div class="user-menu" (click)="toggleUserMenu()">
+          <div class="user-avatar">
+            {{ authService.currentUser()?.username?.charAt(0)?.toUpperCase() || 'U' }}
+          </div>
+          <span class="user-name">{{ authService.currentUser()?.username || 'User' }}</span>
+          <span class="dropdown-arrow">▼</span>
+
+          @if (userMenuOpen()) {
+            <div class="dropdown-menu" (click)="$event.stopPropagation()">
+              <div class="dropdown-header">
+                <strong>{{ authService.currentUser()?.username }}</strong>
+                <span>{{ authService.currentUser()?.email }}</span>
+                <span class="role-badge">{{ authService.currentUser()?.role }}</span>
+              </div>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item" (click)="logout()">
+                Logout
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main class="main-content">
+      <router-outlet />
+    </main>
+  </div>
+</div>
+
+<!-- Backdrop for mobile -->
+@if (!sidebarCollapsed()) {
+  <div class="backdrop mobile-only" (click)="toggleSidebar()"></div>
+}

@@ -1,0 +1,220 @@
+<div class="employee-form">
+  <div class="page-header">
+    <a routerLink="/employees" class="back-link">← Back to Employees</a>
+    <h2>{{ isEditMode ? 'Edit Employee' : 'New Employee' }}</h2>
+  </div>
+
+  <!-- Loading State -->
+  @if (isLoading) {
+    <div class="loading-container">
+      <div class="spinner"></div>
+      <p>Loading employee...</p>
+    </div>
+  } @else {
+    <div class="form-card">
+      <!-- Error Alert -->
+      @if (error) {
+        <div class="alert alert-error">
+          {{ error }}
+          <button class="alert-close" (click)="error = null">×</button>
+        </div>
+      }
+
+      <form [formGroup]="employeeForm" (ngSubmit)="onSubmit()">
+        <!-- Personal Information Section -->
+        <div class="form-section">
+          <h3 class="section-title">Personal Information</h3>
+
+          <div class="form-row">
+            <!-- First Name -->
+            <div class="form-group">
+              <label for="firstName">First Name <span class="required">*</span></label>
+              <input
+                type="text"
+                id="firstName"
+                formControlName="firstName"
+                placeholder="Enter first name"
+                [class.invalid]="firstName?.invalid && firstName?.touched"
+              />
+              @if (firstName?.invalid && firstName?.touched) {
+                <span class="error-text">
+                  @if (firstName?.errors?.['required']) {
+                    First name is required
+                  } @else if (firstName?.errors?.['minlength']) {
+                    Minimum 2 characters
+                  }
+                </span>
+              }
+            </div>
+
+            <!-- Last Name -->
+            <div class="form-group">
+              <label for="lastName">Last Name <span class="required">*</span></label>
+              <input
+                type="text"
+                id="lastName"
+                formControlName="lastName"
+                placeholder="Enter last name"
+                [class.invalid]="lastName?.invalid && lastName?.touched"
+              />
+              @if (lastName?.invalid && lastName?.touched) {
+                <span class="error-text">
+                  @if (lastName?.errors?.['required']) {
+                    Last name is required
+                  } @else if (lastName?.errors?.['minlength']) {
+                    Minimum 2 characters
+                  }
+                </span>
+              }
+            </div>
+          </div>
+
+          <div class="form-row">
+            <!-- Email -->
+            <div class="form-group">
+              <label for="email">Email <span class="required">*</span></label>
+              <input
+                type="email"
+                id="email"
+                formControlName="email"
+                placeholder="Enter email address"
+                [class.invalid]="email?.invalid && email?.touched"
+              />
+              @if (email?.invalid && email?.touched) {
+                <span class="error-text">
+                  @if (email?.errors?.['required']) {
+                    Email is required
+                  } @else if (email?.errors?.['email']) {
+                    Invalid email format
+                  }
+                </span>
+              }
+            </div>
+
+            <!-- Phone -->
+            <div class="form-group">
+              <label for="phone">Phone</label>
+              <input
+                type="tel"
+                id="phone"
+                formControlName="phone"
+                placeholder="Enter phone number"
+                [class.invalid]="phone?.invalid && phone?.touched"
+              />
+              @if (phone?.errors?.['pattern']) {
+                <span class="error-text">Invalid phone format</span>
+              }
+            </div>
+          </div>
+
+          <!-- Date of Birth -->
+          <div class="form-group half-width">
+            <label for="dateOfBirth">Date of Birth <span class="required">*</span></label>
+            <input
+              type="date"
+              id="dateOfBirth"
+              formControlName="dateOfBirth"
+              [class.invalid]="dateOfBirth?.invalid && dateOfBirth?.touched"
+            />
+            @if (dateOfBirth?.errors?.['required'] && dateOfBirth?.touched) {
+              <span class="error-text">Date of birth is required</span>
+            }
+          </div>
+        </div>
+
+        <!-- Employment Information Section -->
+        <div class="form-section">
+          <h3 class="section-title">Employment Information</h3>
+
+          <div class="form-row">
+            <!-- Department -->
+            <div class="form-group">
+              <label for="departmentId">Department <span class="required">*</span></label>
+              <select
+                id="departmentId"
+                formControlName="departmentId"
+                [class.invalid]="departmentId?.invalid && departmentId?.touched"
+              >
+                <option value="">Select department</option>
+                @for (dept of departments; track dept.id) {
+                  <option [value]="dept.id">{{ dept.name }}</option>
+                }
+              </select>
+              @if (departmentId?.errors?.['required'] && departmentId?.touched) {
+                <span class="error-text">Department is required</span>
+              }
+            </div>
+
+            <!-- Hire Date -->
+            <div class="form-group">
+              <label for="hireDate">Hire Date <span class="required">*</span></label>
+              <input
+                type="date"
+                id="hireDate"
+                formControlName="hireDate"
+                [class.invalid]="hireDate?.invalid && hireDate?.touched"
+              />
+              @if (hireDate?.errors?.['required'] && hireDate?.touched) {
+                <span class="error-text">Hire date is required</span>
+              }
+            </div>
+          </div>
+
+          <div class="form-row">
+            <!-- Salary -->
+            <div class="form-group">
+              <label for="salary">Salary <span class="required">*</span></label>
+              <input
+                type="number"
+                id="salary"
+                formControlName="salary"
+                placeholder="Enter annual salary"
+                [class.invalid]="salary?.invalid && salary?.touched"
+              />
+              @if (salary?.invalid && salary?.touched) {
+                <span class="error-text">
+                  @if (salary?.errors?.['required']) {
+                    Salary is required
+                  } @else if (salary?.errors?.['min']) {
+                    Salary must be positive
+                  }
+                </span>
+              }
+            </div>
+
+            <!-- Status (Edit mode only) -->
+            @if (isEditMode) {
+              <div class="form-group">
+                <label for="status">Status</label>
+                <select id="status" formControlName="status">
+                  @for (opt of statusOptions; track opt.value) {
+                    <option [value]="opt.value">{{ opt.label }}</option>
+                  }
+                </select>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+          <a routerLink="/employees" class="btn btn-secondary">
+            Cancel
+          </a>
+          <button
+            type="submit"
+            class="btn btn-primary"
+            [disabled]="isSubmitting"
+          >
+            @if (isSubmitting) {
+              <span class="spinner-sm"></span>
+              Saving...
+            } @else {
+              {{ isEditMode ? 'Update Employee' : 'Create Employee' }}
+            }
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+</div>

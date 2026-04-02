@@ -1,0 +1,157 @@
+<div class="employee-list">
+  <div class="page-header">
+    <h2>Employees</h2>
+    <a routerLink="/employees/new" class="btn btn-primary">
+      + Add Employee
+    </a>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-card">
+    <div class="filters-row">
+      <div class="filter-group">
+        <input
+          type="text"
+          placeholder="Search by name or email..."
+          [(ngModel)]="searchTerm"
+          (input)="applyFilters()"
+          class="search-input"
+        />
+      </div>
+
+      <div class="filter-group">
+        <select [(ngModel)]="selectedDepartment" (change)="applyFilters()">
+          <option value="">All Departments</option>
+          @for (dept of departments(); track dept.id) {
+            <option [value]="dept.id">{{ dept.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <select [(ngModel)]="selectedStatus" (change)="applyFilters()">
+          <option value="">All Status</option>
+          <option value="0">Active</option>
+          <option value="1">On Leave</option>
+          <option value="2">Inactive</option>
+          <option value="3">Terminated</option>
+        </select>
+      </div>
+
+      <button class="btn btn-text" (click)="clearFilters()">
+        Clear Filters
+      </button>
+    </div>
+
+    <div class="results-count">
+      Showing {{ filteredEmployees().length }} of {{ employees().length }} employees
+    </div>
+  </div>
+
+  <!-- Error Alert -->
+  @if (error()) {
+    <div class="alert alert-error">
+      {{ error() }}
+      <button class="alert-close" (click)="error.set(null)">×</button>
+    </div>
+  }
+
+  <!-- Loading State -->
+  @if (isLoading()) {
+    <div class="loading-container">
+      <div class="spinner"></div>
+      <p>Loading employees...</p>
+    </div>
+  } @else if (filteredEmployees().length === 0) {
+    <!-- Empty State -->
+    <div class="empty-state">
+      @if (employees().length === 0) {
+        <div class="empty-icon">👥</div>
+        <h3>No Employees Yet</h3>
+        <p>Get started by adding your first employee.</p>
+        <a routerLink="/employees/new" class="btn btn-primary">
+          Add Employee
+        </a>
+      } @else {
+        <div class="empty-icon">🔍</div>
+        <h3>No Results Found</h3>
+        <p>Try adjusting your filters.</p>
+        <button class="btn btn-secondary" (click)="clearFilters()">
+          Clear Filters
+        </button>
+      }
+    </div>
+  } @else {
+    <!-- Employee Table -->
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Email</th>
+            <th>Department</th>
+            <th>Salary</th>
+            <th>Status</th>
+            <th>Hire Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (emp of filteredEmployees(); track emp.id) {
+            <tr>
+              <td>
+                <div class="employee-info">
+                  <span class="avatar">{{ emp.firstName.charAt(0) }}</span>
+                  <div>
+                    <strong>{{ emp.fullName }}</strong>
+                    @if (emp.phone) {
+                      <span class="phone">{{ emp.phone }}</span>
+                    }
+                  </div>
+                </div>
+              </td>
+              <td>{{ emp.email }}</td>
+              <td>{{ emp.departmentName }}</td>
+              <td>{{ formatSalary(emp.salary) }}</td>
+              <td>
+                <span class="status-badge" [class]="getStatusClass(emp.status)">
+                  {{ getStatusLabel(emp.status) }}
+                </span>
+              </td>
+              <td>{{ emp.hireDate | date:'mediumDate' }}</td>
+              <td>
+                <div class="actions">
+                  <a [routerLink]="['/employees', emp.id, 'edit']" class="btn-icon" title="Edit">
+                    ✏️
+                  </a>
+                  <button class="btn-icon delete" (click)="confirmDelete(emp.id)" title="Delete">
+                    🗑️
+                  </button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Delete Confirmation Row -->
+            @if (deleteId() === emp.id) {
+              <tr class="confirm-row">
+                <td colspan="7">
+                  <div class="confirm-delete">
+                    <span>Are you sure you want to delete "{{ emp.fullName }}"?</span>
+                    <div class="confirm-actions">
+                      <button class="btn btn-sm btn-secondary" (click)="cancelDelete()">
+                        Cancel
+                      </button>
+                      <button class="btn btn-sm btn-danger" (click)="deleteEmployee(emp.id)">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
