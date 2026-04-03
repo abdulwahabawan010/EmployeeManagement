@@ -6,14 +6,14 @@ Full-stack Employee Management System built for learning .NET Core + Angular wit
 **GitHub:** https://github.com/abdulwahabawan010/EmployeeManagement
 
 ## Tech Stack
-- **Backend:** .NET 8, Entity Framework Core, SQL Server
+- **Backend:** .NET 8, Entity Framework Core, SQL Server, FluentValidation
 - **Frontend:** Angular 20, TypeScript, SCSS
 - **Database:** SQL Server via Docker (Azure SQL Edge)
 - **Architecture:** Clean Architecture (3-layer) + Repository + Unit of Work
 
-## Current Progress: Days 1-4 ✅ COMPLETE
+## Current Progress: Days 1-5 COMPLETE
 
-### ✅ Day 1: Project Setup + Database
+### Day 1: Project Setup + Database
 - Environment setup (Docker, SQL Server, EF Tools)
 - Clean Architecture project structure
 - Entity models: Employee, Department, User, RefreshToken, BaseEntity
@@ -22,7 +22,7 @@ Full-stack Employee Management System built for learning .NET Core + Angular wit
 - DbContext with Fluent API configuration
 - Migrations + Database seeding
 
-### ✅ Day 2: JWT Authentication
+### Day 2: JWT Authentication
 - BCrypt password hashing
 - JWT token generation with claims
 - Refresh token implementation
@@ -31,7 +31,7 @@ Full-stack Employee Management System built for learning .NET Core + Angular wit
 - AuthController endpoints
 - Role-based authorization [Authorize(Roles = "Admin")]
 
-### ✅ Day 3: Repository + Unit of Work Pattern
+### Day 3: Repository + Unit of Work Pattern
 - IGenericRepository interface (CRUD + Include methods)
 - GenericRepository implementation
 - IUnitOfWork interface (manages repositories + transactions)
@@ -39,7 +39,7 @@ Full-stack Employee Management System built for learning .NET Core + Angular wit
 - Services refactored to use UnitOfWork
 - DepartmentService & EmployeeService
 
-### ✅ Day 4: Angular Frontend
+### Day 4: Angular Frontend
 - Enterprise folder structure (core/features/shared/layouts)
 - Path aliases (@core/*, @features/*, @shared/*, @layouts/*)
 - Core services: ApiService, AuthService
@@ -54,6 +54,30 @@ Full-stack Employee Management System built for learning .NET Core + Angular wit
 - Lazy loading for all feature modules
 - CORS configured on backend
 
+### Day 5: FluentValidation + Global Error Handling
+- **FluentValidation Package** - Clean, fluent validation rules
+- **Validators Created:**
+  - CreateEmployeeDtoValidator (name, email, salary, dates validation)
+  - UpdateEmployeeDtoValidator (optional field validation)
+  - CreateDepartmentDtoValidator (name, description validation)
+  - UpdateDepartmentDtoValidator (optional field validation)
+  - RegisterDtoValidator (password strength, email format)
+  - LoginDtoValidator (required fields)
+- **Custom Exception Types:**
+  - ApiException (base class with HTTP status code)
+  - NotFoundException (404)
+  - BadRequestException (400)
+  - ValidationException (422)
+  - ConflictException (409 - duplicate entries)
+  - UnauthorizedException (401)
+  - ForbiddenException (403)
+- **ErrorResponse Model** - Standardized API error format with:
+  - statusCode, errorCode, message, details
+  - path, timestamp, traceId
+- **GlobalExceptionMiddleware** - Catches all exceptions, logs errors
+- **Controllers Simplified** - No try-catch needed, exceptions bubble up
+- **Services Updated** - Throw custom exceptions instead of generic ones
+
 ## Project Structure
 ```
 EmployeeManagement/
@@ -66,12 +90,24 @@ EmployeeManagement/
 │   │   │   ├── AuthController.cs
 │   │   │   ├── DepartmentController.cs
 │   │   │   └── EmployeeController.cs
+│   │   ├── Middleware/
+│   │   │   └── GlobalExceptionMiddleware.cs    # NEW
 │   │   ├── Program.cs
 │   │   └── appsettings.json
 │   ├── EmployeeManagement.Core/
 │   │   ├── Entities/
 │   │   ├── Enums/
 │   │   ├── DTOs/
+│   │   ├── Exceptions/                          # NEW
+│   │   │   ├── ApiException.cs
+│   │   │   └── ErrorResponse.cs
+│   │   ├── Validators/                          # NEW
+│   │   │   ├── CreateEmployeeDtoValidator.cs
+│   │   │   ├── UpdateEmployeeDtoValidator.cs
+│   │   │   ├── CreateDepartmentDtoValidator.cs
+│   │   │   ├── UpdateDepartmentDtoValidator.cs
+│   │   │   ├── RegisterDtoValidator.cs
+│   │   │   └── LoginDtoValidator.cs
 │   │   └── Interfaces/
 │   │       ├── IUnitOfWork.cs
 │   │       ├── Repositories/
@@ -102,6 +138,22 @@ EmployeeManagement/
     │   └── shared/
     ├── src/environments/
     └── angular.json
+```
+
+## API Error Response Format
+```json
+{
+  "statusCode": 422,
+  "errorCode": "VALIDATION_ERROR",
+  "message": "One or more validation errors occurred",
+  "details": {
+    "email": ["Invalid email format"],
+    "password": ["Password must be at least 8 characters"]
+  },
+  "path": "/api/auth/register",
+  "timestamp": "2026-04-03T11:30:00Z",
+  "traceId": "0HNKHEI3NAGND:00000001"
+}
 ```
 
 ## API Endpoints
@@ -175,12 +227,12 @@ git push origin main
 - Day 2: JWT Authentication + Refresh Tokens ✅
 - Day 3: Repository + Unit of Work Pattern ✅
 - Day 4: Angular Enterprise Frontend ✅
-- Day 5: FluentValidation + Global Error Handling ← NEXT
-- Day 6: Unit Testing (xUnit + Moq)
+- Day 5: FluentValidation + Global Error Handling ✅
+- Day 6: Unit Testing (xUnit + Moq) ← NEXT
 - Day 7: Advanced (Pagination, File Upload, Caching, Docker)
 
 ## Resume Instructions
-Tell Claude: "Let's start Day 5 - FluentValidation and Global Error Handling"
+Tell Claude: "Let's start Day 6 - Unit Testing with xUnit and Moq"
 
 ## Key Patterns Learned
 1. **Clean Architecture** - Separation of concerns (API, Core, Infrastructure)
@@ -191,3 +243,7 @@ Tell Claude: "Let's start Day 5 - FluentValidation and Global Error Handling"
 6. **Guards & Interceptors** - Route protection + HTTP request/response handling
 7. **Reactive Forms** - Form validation with FormBuilder
 8. **Signals** - Modern Angular state management
+9. **FluentValidation** - Declarative validation rules separate from DTOs
+10. **Global Exception Handling** - Centralized error handling middleware
+11. **Custom Exceptions** - Domain-specific exception types with HTTP status codes
+12. **Standardized Error Responses** - Consistent API error format

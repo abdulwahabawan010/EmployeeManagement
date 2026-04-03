@@ -1,5 +1,6 @@
 using EmployeeManagement.Core.DTOs.Employee;
 using EmployeeManagement.Core.Entities;
+using EmployeeManagement.Core.Exceptions;
 using EmployeeManagement.Core.Interfaces;
 using EmployeeManagement.Core.Interfaces.Services;
 
@@ -8,6 +9,7 @@ namespace EmployeeManagement.Infrastructure.Services;
 /// <summary>
 /// Employee Service - Business logic layer
 /// Uses IUnitOfWork (not DbContext directly!)
+/// Throws custom exceptions for proper error handling
 /// </summary>
 public class EmployeeService : IEmployeeService
 {
@@ -43,6 +45,13 @@ public class EmployeeService : IEmployeeService
 
     public async Task<IEnumerable<EmployeeResponseDto>> GetByDepartmentAsync(int departmentId)
     {
+        // Verify department exists
+        var departmentExists = await _unitOfWork.Departments
+            .AnyAsync(d => d.Id == departmentId && !d.IsDeleted);
+
+        if (!departmentExists)
+            throw new NotFoundException("Department", departmentId);
+
         var employees = await _unitOfWork.Employees
             .FindWithIncludeAsync(
                 e => e.DepartmentId == departmentId && !e.IsDeleted,
@@ -59,11 +68,11 @@ public class EmployeeService : IEmployeeService
             .AnyAsync(d => d.Id == dto.DepartmentId && !d.IsDeleted);
 
         if (!departmentExists)
-            throw new Exception($"Department with ID {dto.DepartmentId} not found");
+            throw new NotFoundException("Department", dto.DepartmentId);
 
         // Business validation: Check if email already exists
         if (await EmailExistsAsync(dto.Email))
-            throw new Exception($"Email {dto.Email} is already in use");
+            throw new ConflictException("Employee", "email", dto.Email);
 
         // Map DTO → Entity
         var employee = new Employee
@@ -111,7 +120,7 @@ public class EmployeeService : IEmployeeService
         if (!string.IsNullOrEmpty(dto.Email) && dto.Email != employee.Email)
         {
             if (await EmailExistsAsync(dto.Email, id))
-                throw new Exception($"Email {dto.Email} is already in use");
+                throw new ConflictException("Employee", "email", dto.Email);
         }
 
         // Business validation: Check department exists if updating
@@ -121,7 +130,7 @@ public class EmployeeService : IEmployeeService
                 .AnyAsync(d => d.Id == dto.DepartmentId && !d.IsDeleted);
 
             if (!departmentExists)
-                throw new Exception($"Department with ID {dto.DepartmentId} not found");
+                throw new NotFoundException("Department", dto.DepartmentId.Value);
         }
 
         // Update only provided fields

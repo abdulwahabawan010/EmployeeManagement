@@ -4,6 +4,11 @@ using EmployeeManagement.Core.Interfaces.Services;
 
 namespace EmployeeManagement.API.Controllers;
 
+/// <summary>
+/// Authentication Controller - Login, Register, Token Management
+///
+/// Note: No try-catch needed - GlobalExceptionMiddleware handles all errors
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
@@ -22,15 +27,8 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponseDto>> Register([FromBody] RegisterDto registerDto)
     {
-        try
-        {
-            var result = await _authService.RegisterAsync(registerDto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _authService.RegisterAsync(registerDto);
+        return Ok(result);
     }
 
     /// <summary>
@@ -40,15 +38,8 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponseDto>> Login([FromBody] LoginDto loginDto)
     {
-        try
-        {
-            var result = await _authService.LoginAsync(loginDto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _authService.LoginAsync(loginDto);
+        return Ok(result);
     }
 
     /// <summary>
@@ -58,15 +49,8 @@ public class AuthController : ControllerBase
     [HttpPost("refresh")]
     public async Task<ActionResult<AuthResponseDto>> RefreshToken([FromBody] RefreshTokenDto refreshTokenDto)
     {
-        try
-        {
-            var result = await _authService.RefreshTokenAsync(refreshTokenDto.RefreshToken);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _authService.RefreshTokenAsync(refreshTokenDto.RefreshToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -76,14 +60,7 @@ public class AuthController : ControllerBase
     [HttpPost("revoke")]
     public async Task<ActionResult> RevokeToken([FromBody] RefreshTokenDto refreshTokenDto)
     {
-        try
-        {
-            await _authService.RevokeRefreshTokenAsync(refreshTokenDto.RefreshToken);
-            return Ok(new { message = "Token revoked successfully" });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        await _authService.RevokeRefreshTokenAsync(refreshTokenDto.RefreshToken);
+        return Ok(new { message = "Token revoked successfully" });
     }
 }

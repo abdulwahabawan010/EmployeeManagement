@@ -1,10 +1,16 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using EmployeeManagement.Core.DTOs.Employee;
+using EmployeeManagement.Core.Exceptions;
 using EmployeeManagement.Core.Interfaces.Services;
 
 namespace EmployeeManagement.API.Controllers;
 
+/// <summary>
+/// Employee Controller - REST API endpoints
+///
+/// Note: No try-catch needed - GlobalExceptionMiddleware handles all errors
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
@@ -38,7 +44,7 @@ public class EmployeeController : ControllerBase
         var employee = await _employeeService.GetByIdAsync(id);
 
         if (employee == null)
-            return NotFound(new { message = $"Employee with ID {id} not found" });
+            throw new NotFoundException("Employee", id);
 
         return Ok(employee);
     }
@@ -62,15 +68,8 @@ public class EmployeeController : ControllerBase
     [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<EmployeeResponseDto>> Create([FromBody] CreateEmployeeDto dto)
     {
-        try
-        {
-            var employee = await _employeeService.CreateAsync(dto);
-            return CreatedAtAction(nameof(GetById), new { id = employee.Id }, employee);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var employee = await _employeeService.CreateAsync(dto);
+        return CreatedAtAction(nameof(GetById), new { id = employee.Id }, employee);
     }
 
     /// <summary>
@@ -81,19 +80,12 @@ public class EmployeeController : ControllerBase
     [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<EmployeeResponseDto>> Update(int id, [FromBody] UpdateEmployeeDto dto)
     {
-        try
-        {
-            var employee = await _employeeService.UpdateAsync(id, dto);
+        var employee = await _employeeService.UpdateAsync(id, dto);
 
-            if (employee == null)
-                return NotFound(new { message = $"Employee with ID {id} not found" });
+        if (employee == null)
+            throw new NotFoundException("Employee", id);
 
-            return Ok(employee);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        return Ok(employee);
     }
 
     /// <summary>
@@ -107,7 +99,7 @@ public class EmployeeController : ControllerBase
         var result = await _employeeService.DeleteAsync(id);
 
         if (!result)
-            return NotFound(new { message = $"Employee with ID {id} not found" });
+            throw new NotFoundException("Employee", id);
 
         return Ok(new { message = "Employee deleted successfully" });
     }

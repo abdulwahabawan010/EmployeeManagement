@@ -8,11 +8,17 @@ using Microsoft.IdentityModel.Tokens;
 using EmployeeManagement.Core.DTOs.Auth;
 using EmployeeManagement.Core.Entities;
 using EmployeeManagement.Core.Enums;
+using EmployeeManagement.Core.Exceptions;
 using EmployeeManagement.Core.Interfaces.Services;
 using EmployeeManagement.Infrastructure.Data;
 
 namespace EmployeeManagement.Infrastructure.Services;
 
+/// <summary>
+/// Authentication Service
+/// Handles user registration, login, and token management
+/// Throws custom exceptions for proper error handling
+/// </summary>
 public class AuthService : IAuthService
 {
     private readonly AppDbContext _context;
@@ -26,14 +32,19 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponseDto> RegisterAsync(RegisterDto registerDto)
     {
-        // Check if user already exists
-        var existingUser = await _context.Users
-            .FirstOrDefaultAsync(u => u.Email == registerDto.Email || u.Username == registerDto.Username);
+        // Check if user already exists by email
+        var emailExists = await _context.Users
+            .AnyAsync(u => u.Email == registerDto.Email);
 
-        if (existingUser != null)
-        {
-            throw new Exception("User with this email or username already exists");
-        }
+        if (emailExists)
+            throw new ConflictException("User", "email", registerDto.Email);
+
+        // Check if username already exists
+        var usernameExists = await _context.Users
+            .AnyAsync(u => u.Username == registerDto.Username);
+
+        if (usernameExists)
+            throw new ConflictException("User", "username", registerDto.Username);
 
         // Hash password using BCrypt
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(registerDto.Password);
@@ -62,23 +73,17 @@ public class AuthService : IAuthService
             .FirstOrDefaultAsync(u => u.Email == loginDto.Email);
 
         if (user == null)
-        {
-            throw new Exception("Invalid email or password");
-        }
+            throw new UnauthorizedException("Invalid email or password");
 
         // Verify password
         var isValidPassword = BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash);
 
         if (!isValidPassword)
-        {
-            throw new Exception("Invalid email or password");
-        }
+            throw new UnauthorizedException("Invalid email or password");
 
         // Check if user is active
         if (!user.IsActive)
-        {
-            throw new Exception("User account is deactivated");
-        }
+            throw new ForbiddenException("Your account has been deactivated. Please contact support.");
 
         // Update last login time
         user.LastLoginAt = DateTime.UtcNow;
@@ -102,23 +107,17 @@ public class AuthService : IAuthService
             .FirstOrDefaultAsync(r => r.Token == refreshToken);
 
         if (storedToken == null)
-        {
-            throw new Exception("Invalid refresh token");
-        }
+            throw new UnauthorizedException("Invalid refresh token");
 
         // Check if token is active (not revoked and not expired)
         if (!storedToken.IsActive)
-        {
-            throw new Exception("Refresh token is expired or revoked");
-        }
+            throw new UnauthorizedException("Refresh token is expired or revoked");
 
         // Get the user
         var user = storedToken.User;
 
         if (!user.IsActive)
-        {
-            throw new Exception("User account is deactivated");
-        }
+            throw new ForbiddenException("Your account has been deactivated. Please contact support.");
 
         // Revoke the old refresh token
         storedToken.IsRevoked = true;
@@ -137,9 +136,7 @@ public class AuthService : IAuthService
             .FirstOrDefaultAsync(r => r.Token == refreshToken);
 
         if (storedToken == null)
-        {
-            throw new Exception("Invalid refresh token");
-        }
+            throw new NotFoundException("Refresh token not found");
 
         storedToken.IsRevoked = true;
         storedToken.RevokedAt = DateTime.UtcNow;

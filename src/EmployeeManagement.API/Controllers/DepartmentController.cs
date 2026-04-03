@@ -1,13 +1,19 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using EmployeeManagement.Core.DTOs.Department;
+using EmployeeManagement.Core.Exceptions;
 using EmployeeManagement.Core.Interfaces.Services;
 
 namespace EmployeeManagement.API.Controllers;
 
+/// <summary>
+/// Department Controller - REST API endpoints
+///
+/// Note: No try-catch needed - GlobalExceptionMiddleware handles all errors
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]  // All endpoints require authentication
+[Authorize]
 public class DepartmentController : ControllerBase
 {
     private readonly IDepartmentService _departmentService;
@@ -38,7 +44,7 @@ public class DepartmentController : ControllerBase
         var department = await _departmentService.GetByIdAsync(id);
 
         if (department == null)
-            return NotFound(new { message = $"Department with ID {id} not found" });
+            throw new NotFoundException("Department", id);
 
         return Ok(department);
     }
@@ -48,7 +54,7 @@ public class DepartmentController : ControllerBase
     /// POST: api/department
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = "Admin")]  // Only admin can create
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<DepartmentResponseDto>> Create([FromBody] CreateDepartmentDto dto)
     {
         var department = await _departmentService.CreateAsync(dto);
@@ -60,13 +66,13 @@ public class DepartmentController : ControllerBase
     /// PUT: api/department/5
     /// </summary>
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin")]  // Only admin can update
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<DepartmentResponseDto>> Update(int id, [FromBody] UpdateDepartmentDto dto)
     {
         var department = await _departmentService.UpdateAsync(id, dto);
 
         if (department == null)
-            return NotFound(new { message = $"Department with ID {id} not found" });
+            throw new NotFoundException("Department", id);
 
         return Ok(department);
     }
@@ -76,13 +82,13 @@ public class DepartmentController : ControllerBase
     /// DELETE: api/department/5
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]  // Only admin can delete
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult> Delete(int id)
     {
         var result = await _departmentService.DeleteAsync(id);
 
         if (!result)
-            return NotFound(new { message = $"Department with ID {id} not found" });
+            throw new NotFoundException("Department", id);
 
         return Ok(new { message = "Department deleted successfully" });
     }

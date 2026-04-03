@@ -1,5 +1,6 @@
 using EmployeeManagement.Core.DTOs.Department;
 using EmployeeManagement.Core.Entities;
+using EmployeeManagement.Core.Exceptions;
 using EmployeeManagement.Core.Interfaces;
 using EmployeeManagement.Core.Interfaces.Services;
 
@@ -8,6 +9,7 @@ namespace EmployeeManagement.Infrastructure.Services;
 /// <summary>
 /// Department Service - Business logic layer
 /// Uses IUnitOfWork (not DbContext directly!)
+/// Throws custom exceptions for proper error handling
 ///
 /// Service responsibilities:
 /// 1. DTO ↔ Entity mapping
@@ -49,6 +51,13 @@ public class DepartmentService : IDepartmentService
 
     public async Task<DepartmentResponseDto> CreateAsync(CreateDepartmentDto dto)
     {
+        // Check if department name already exists
+        var nameExists = await _unitOfWork.Departments
+            .AnyAsync(d => d.Name.ToLower() == dto.Name.ToLower() && !d.IsDeleted);
+
+        if (nameExists)
+            throw new ConflictException("Department", "name", dto.Name);
+
         // Map DTO → Entity
         var department = new Department
         {
@@ -78,6 +87,16 @@ public class DepartmentService : IDepartmentService
         if (department == null)
             return null;
 
+        // Check if new name conflicts with existing departments
+        if (!string.IsNullOrEmpty(dto.Name) && dto.Name.ToLower() != department.Name.ToLower())
+        {
+            var nameExists = await _unitOfWork.Departments
+                .AnyAsync(d => d.Name.ToLower() == dto.Name.ToLower() && !d.IsDeleted && d.Id != id);
+
+            if (nameExists)
+                throw new ConflictException("Department", "name", dto.Name);
+        }
+
         // Update only provided fields (business logic)
         if (!string.IsNullOrEmpty(dto.Name))
             department.Name = dto.Name;
@@ -103,6 +122,13 @@ public class DepartmentService : IDepartmentService
 
         if (department == null || department.IsDeleted)
             return false;
+
+        // Check if department has active employees
+        var hasEmployees = await _unitOfWork.Employees
+            .AnyAsync(e => e.DepartmentId == id && !e.IsDeleted);
+
+        if (hasEmployees)
+            throw new BadRequestException("Cannot delete department that has active employees. Please reassign or remove employees first.");
 
         // Soft delete (business logic)
         department.IsDeleted = true;
