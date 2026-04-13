@@ -1,0 +1,70 @@
+# ============================================================================
+# .DOCKERIGNORE - Exclude files from Docker build context
+# ============================================================================
+# WHY THIS MATTERS:
+# - Smaller build context = faster builds
+# - Don't send unnecessary files to Docker daemon
+# - Prevents secrets from accidentally being included
+#
+# Interview Q: "How do you optimize Docker build times?"
+# Answer: ".dockerignore to reduce context size, layer caching,
+#         multi-stage builds, and proper COPY instruction ordering."
+# ============================================================================
+
+# ==================== GIT ====================
+.git
+.gitignore
+.gitattributes
+
+# ==================== IDE & EDITOR ====================
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# ==================== .NET BUILD OUTPUTS ====================
+**/bin/
+**/obj/
+**/out/
+
+# ==================== DOCUMENTATION ====================
+*.md
+!README.md
+LICENSE
+
+# ==================== DOCKER ====================
+**/Dockerfile*
+**/.dockerignore
+docker-compose*.yml
+
+# ==================== ENVIRONMENT & SECRETS ====================
+**/.env
+**/.env.*
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/*.local.json
+**/secrets/
+
+# ==================== ANGULAR CLIENT ====================
+# Don't include frontend in API container
+client/
+**/node_modules/
+**/dist/
+**/.angular/
+
+# ==================== LOGS & DEBUG ====================
+**/logs/
+**/*.log
+**/TestResults/
+**/coverage/
+
+# ==================== OS FILES ====================
+.DS_Store
+Thumbs.db
+
+# ==================== MISC ====================
+*.user
+*.suo
+*.userosscache
+*.sln.docstates

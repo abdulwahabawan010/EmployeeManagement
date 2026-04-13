@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using EmployeeManagement.Core.Exceptions;
 using FluentValidation;
 
@@ -110,6 +111,24 @@ public class GlobalExceptionMiddleware
                 response.StatusCode = (int)HttpStatusCode.Unauthorized;
                 response.ErrorCode = "UNAUTHORIZED";
                 response.Message = "You are not authenticated";
+                break;
+
+            // ==================== CONCURRENCY EXCEPTION ====================
+            // Thrown when RowVersion doesn't match (someone else modified the record)
+            //
+            // Interview Q: "How do you handle optimistic concurrency conflicts?"
+            // Answer: "Catch DbUpdateConcurrencyException, return 409 Conflict
+            //         with details about the conflict. Client can retry with fresh data."
+            case DbUpdateConcurrencyException concurrencyException:
+                response.StatusCode = (int)HttpStatusCode.Conflict;
+                response.ErrorCode = "CONCURRENCY_CONFLICT";
+                response.Message = "The record was modified by another user. Please refresh and try again.";
+                response.Details = _environment.IsDevelopment()
+                    ? new {
+                        hint = "This occurs when RowVersion doesn't match. Another user or process modified this record.",
+                        affectedEntities = concurrencyException.Entries.Select(e => e.Entity.GetType().Name).ToArray()
+                    }
+                    : null;
                 break;
 
             // Handle all other exceptions

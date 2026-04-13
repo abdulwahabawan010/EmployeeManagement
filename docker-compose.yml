@@ -1,0 +1,121 @@
+# ============================================================================
+# DOCKER COMPOSE - Employee Management System
+# ============================================================================
+# Orchestrates multiple containers as a single application
+#
+# WHAT IS DOCKER COMPOSE?
+# - Define multi-container applications in a single YAML file
+# - One command to start/stop entire stack: docker-compose up/down
+# - Handles networking, volumes, dependencies automatically
+#
+# Interview Q: "How do you manage multi-container applications?"
+# Answer: "Docker Compose for development, Kubernetes for production.
+#         Compose handles networking, volumes, and service dependencies."
+# ============================================================================
+
+services:
+  # ==================== SQL SERVER ====================
+  # Database container using Azure SQL Edge (ARM64 compatible for M1/M2 Macs)
+  sqlserver:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    container_name: employeemanagement-db
+
+    # Environment variables for SQL Server
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Employee@123
+      - MSSQL_PID=Developer
+
+    # Port mapping: host:container
+    # Using 1434 to avoid conflict with existing SQL Server on 1433
+    # Access from host machine at localhost:1434
+    ports:
+      - "1434:1433"
+
+    # Persist data even when container is removed
+    # Interview Q: "How do you persist data in Docker?"
+    # Answer: "Docker volumes - data survives container restarts/removal"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+
+    # Network for inter-container communication
+    networks:
+      - employeemanagement-network
+
+    # Note: Azure SQL Edge doesn't include sqlcmd or nc by default
+    # The API has retry logic built-in for connection resilience
+
+  # ==================== .NET API ====================
+  # Application container built from Dockerfile
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: employeemanagement-api
+
+    # Environment variables override appsettings.json
+    # Interview Q: "How do you manage configuration in containers?"
+    # Answer: "Environment variables for secrets and environment-specific config.
+    #         They override appsettings.json values at runtime."
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      # Connection string pointing to sqlserver container (not localhost!)
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=EmployeeManagementDb;User Id=sa;Password=Employee@123;TrustServerCertificate=True;
+      - Jwt__SecretKey=YourSuperSecretKeyForJWTAuthenticationMustBeAtLeast32Characters!
+      - Jwt__Issuer=EmployeeManagementAPI
+      - Jwt__Audience=EmployeeManagementClient
+      - Cors__AllowedOrigins__0=http://localhost:4200
+
+    # Port mapping
+    ports:
+      - "5136:8080"
+
+    # Wait for SQL Server container to start before starting API
+    # Interview Q: "How do you handle service dependencies in Docker?"
+    # Answer: "depends_on ensures container start order. For production,
+    #         use application-level retry logic for database connections."
+    depends_on:
+      - sqlserver
+
+    networks:
+      - employeemanagement-network
+
+    # Health check for API container
+    # Uses the /health endpoint we added to the application
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Restart policy
+    restart: unless-stopped
+
+  # ==================== ANGULAR CLIENT (OPTIONAL) ====================
+  # Uncomment if you want to containerize the frontend
+  # client:
+  #   build:
+  #     context: ./client
+  #     dockerfile: Dockerfile
+  #   container_name: employeemanagement-client
+  #   ports:
+  #     - "4200:80"
+  #   depends_on:
+  #     - api
+  #   networks:
+  #     - employeemanagement-network
+
+# ==================== VOLUMES ====================
+# Named volumes persist data across container restarts
+volumes:
+  sqlserver-data:
+    driver: local
+
+# ==================== NETWORKS ====================
+# Custom network for container communication
+# Containers can reach each other by service name (e.g., "sqlserver")
+networks:
+  employeemanagement-network:
+    driver: bridge

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using EmployeeManagement.Core.DTOs.Employee;
 using EmployeeManagement.Core.Entities;
 using EmployeeManagement.Core.Exceptions;
@@ -8,73 +9,127 @@ namespace EmployeeManagement.Infrastructure.Services;
 
 /// <summary>
 /// Employee Service - Business logic layer
-/// Uses IUnitOfWork (not DbContext directly!)
-/// Throws custom exceptions for proper error handling
+///
+/// DAY 1 IMPROVEMENTS:
+/// 1. Uses AsNoTracking for read-only queries (performance)
+/// 2. No manual IsDeleted checks (Global Query Filter handles it)
+/// 3. Uses Delete() method (Interceptor converts to soft delete)
+/// 4. Structured logging with Serilog
+///
+/// Interview Q: "How do you structure your service layer?"
+/// Answer: "Services contain business logic, use repositories via UnitOfWork,
+///         throw custom exceptions for error handling, and delegate
+///         cross-cutting concerns (audit, logging) to interceptors/middleware."
 /// </summary>
 public class EmployeeService : IEmployeeService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<EmployeeService> _logger;
 
-    public EmployeeService(IUnitOfWork unitOfWork)
+    public EmployeeService(IUnitOfWork unitOfWork, ILogger<EmployeeService> logger)
     {
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
+    /// <summary>
+    /// Get all employees (non-deleted due to Global Query Filter)
+    /// Uses AsNoTracking for performance (read-only operation)
+    /// </summary>
     public async Task<IEnumerable<EmployeeResponseDto>> GetAllAsync()
     {
+        _logger.LogInformation("Fetching all employees");
+
+        // trackChanges: false = AsNoTracking (faster for read-only)
+        // No need for !e.IsDeleted - Global Query Filter handles it!
         var employees = await _unitOfWork.Employees
-            .FindWithIncludeAsync(
-                e => !e.IsDeleted,
+            .GetAllWithIncludeAsync(
+                trackChanges: false,  // Read-only = AsNoTracking
                 e => e.Department
             );
 
+        _logger.LogInformation("Retrieved {Count} employees", employees.Count());
         return employees.Select(MapToDto);
     }
 
+    /// <summary>
+    /// Get employee by ID
+    /// Uses AsNoTracking for read-only operation
+    /// </summary>
     public async Task<EmployeeResponseDto?> GetByIdAsync(int id)
     {
-        var employees = await _unitOfWork.Employees
-            .FindWithIncludeAsync(
-                e => e.Id == id && !e.IsDeleted,
+        _logger.LogInformation("Fetching employee with ID {EmployeeId}", id);
+
+        var employee = await _unitOfWork.Employees
+            .GetByIdWithIncludeAsync(
+                id,
+                trackChanges: false,
                 e => e.Department
             );
 
-        var employee = employees.FirstOrDefault();
-        return employee == null ? null : MapToDto(employee);
+        if (employee == null)
+        {
+            _logger.LogWarning("Employee with ID {EmployeeId} not found", id);
+            return null;
+        }
+
+        return MapToDto(employee);
     }
 
+    /// <summary>
+    /// Get employees by department
+    /// </summary>
     public async Task<IEnumerable<EmployeeResponseDto>> GetByDepartmentAsync(int departmentId)
     {
-        // Verify department exists
-        var departmentExists = await _unitOfWork.Departments
-            .AnyAsync(d => d.Id == departmentId && !d.IsDeleted);
+        _logger.LogInformation(
+            "Fetching employees for department {DepartmentId}",
+            departmentId);
+
+        // Verify department exists (Global Query Filter excludes deleted)
+        var departmentExists = await _unitOfWork.Departments.ExistsAsync(departmentId);
 
         if (!departmentExists)
+        {
+            _logger.LogWarning("Department {DepartmentId} not found", departmentId);
             throw new NotFoundException("Department", departmentId);
+        }
 
         var employees = await _unitOfWork.Employees
             .FindWithIncludeAsync(
-                e => e.DepartmentId == departmentId && !e.IsDeleted,
+                e => e.DepartmentId == departmentId,
+                trackChanges: false,
                 e => e.Department
             );
 
         return employees.Select(MapToDto);
     }
 
+    /// <summary>
+    /// Create new employee
+    /// Interceptor automatically sets CreatedAt, CreatedBy
+    /// </summary>
     public async Task<EmployeeResponseDto> CreateAsync(CreateEmployeeDto dto)
     {
-        // Business validation: Check if department exists
-        var departmentExists = await _unitOfWork.Departments
-            .AnyAsync(d => d.Id == dto.DepartmentId && !d.IsDeleted);
+        _logger.LogInformation(
+            "Creating employee {FirstName} {LastName} in department {DepartmentId}",
+            dto.FirstName, dto.LastName, dto.DepartmentId);
 
+        // Validate department exists
+        var departmentExists = await _unitOfWork.Departments.ExistsAsync(dto.DepartmentId);
         if (!departmentExists)
+        {
+            _logger.LogWarning("Cannot create employee: Department {DepartmentId} not found", dto.DepartmentId);
             throw new NotFoundException("Department", dto.DepartmentId);
+        }
 
-        // Business validation: Check if email already exists
+        // Check email uniqueness
         if (await EmailExistsAsync(dto.Email))
+        {
+            _logger.LogWarning("Cannot create employee: Email {Email} already exists", dto.Email);
             throw new ConflictException("Employee", "email", dto.Email);
+        }
 
-        // Map DTO → Entity
+        // Map DTO to Entity
         var employee = new Employee
         {
             FirstName = dto.FirstName,
@@ -85,118 +140,131 @@ public class EmployeeService : IEmployeeService
             HireDate = dto.HireDate,
             Salary = dto.Salary,
             DepartmentId = dto.DepartmentId
+            // NOTE: CreatedAt, CreatedBy set automatically by Interceptor
         };
 
-        // Add through repository
         _unitOfWork.Employees.Add(employee);
-
-        // Save through UnitOfWork
         await _unitOfWork.SaveChangesAsync();
 
-        // Load department for response
-        var savedEmployees = await _unitOfWork.Employees
-            .FindWithIncludeAsync(
-                e => e.Id == employee.Id,
+        _logger.LogInformation(
+            "Employee created successfully with ID {EmployeeId}",
+            employee.Id);
+
+        // Load with department for response
+        var savedEmployee = await _unitOfWork.Employees
+            .GetByIdWithIncludeAsync(
+                employee.Id,
+                trackChanges: false,
                 e => e.Department
             );
 
-        return MapToDto(savedEmployees.First());
+        return MapToDto(savedEmployee!);
     }
 
+    /// <summary>
+    /// Update employee
+    /// Interceptor automatically sets UpdatedAt, UpdatedBy
+    /// </summary>
     public async Task<EmployeeResponseDto?> UpdateAsync(int id, UpdateEmployeeDto dto)
     {
-        var employees = await _unitOfWork.Employees
-            .FindWithIncludeAsync(
-                e => e.Id == id && !e.IsDeleted,
+        _logger.LogInformation("Updating employee {EmployeeId}", id);
+
+        // trackChanges: true - we need EF to track this for update
+        var employee = await _unitOfWork.Employees
+            .GetByIdWithIncludeAsync(
+                id,
+                trackChanges: true,  // Need tracking for update
                 e => e.Department
             );
 
-        var employee = employees.FirstOrDefault();
-
         if (employee == null)
+        {
+            _logger.LogWarning("Employee {EmployeeId} not found for update", id);
             return null;
+        }
 
-        // Business validation: Check email uniqueness if updating email
+        // Validate email uniqueness if changing
         if (!string.IsNullOrEmpty(dto.Email) && dto.Email != employee.Email)
         {
             if (await EmailExistsAsync(dto.Email, id))
+            {
+                _logger.LogWarning("Cannot update: Email {Email} already exists", dto.Email);
                 throw new ConflictException("Employee", "email", dto.Email);
+            }
         }
 
-        // Business validation: Check department exists if updating
-        if (dto.DepartmentId.HasValue)
+        // Validate department if changing
+        if (dto.DepartmentId.HasValue && dto.DepartmentId != employee.DepartmentId)
         {
-            var departmentExists = await _unitOfWork.Departments
-                .AnyAsync(d => d.Id == dto.DepartmentId && !d.IsDeleted);
-
+            var departmentExists = await _unitOfWork.Departments.ExistsAsync(dto.DepartmentId.Value);
             if (!departmentExists)
+            {
                 throw new NotFoundException("Department", dto.DepartmentId.Value);
+            }
         }
 
         // Update only provided fields
-        if (!string.IsNullOrEmpty(dto.FirstName))
-            employee.FirstName = dto.FirstName;
+        if (!string.IsNullOrEmpty(dto.FirstName)) employee.FirstName = dto.FirstName;
+        if (!string.IsNullOrEmpty(dto.LastName)) employee.LastName = dto.LastName;
+        if (!string.IsNullOrEmpty(dto.Email)) employee.Email = dto.Email;
+        if (dto.Phone != null) employee.Phone = dto.Phone;
+        if (dto.DateOfBirth.HasValue) employee.DateOfBirth = dto.DateOfBirth.Value;
+        if (dto.HireDate.HasValue) employee.HireDate = dto.HireDate.Value;
+        if (dto.Salary.HasValue) employee.Salary = dto.Salary.Value;
+        if (dto.DepartmentId.HasValue) employee.DepartmentId = dto.DepartmentId.Value;
+        if (dto.Status.HasValue) employee.Status = dto.Status.Value;
 
-        if (!string.IsNullOrEmpty(dto.LastName))
-            employee.LastName = dto.LastName;
-
-        if (!string.IsNullOrEmpty(dto.Email))
-            employee.Email = dto.Email;
-
-        if (dto.Phone != null)
-            employee.Phone = dto.Phone;
-
-        if (dto.DateOfBirth.HasValue)
-            employee.DateOfBirth = dto.DateOfBirth.Value;
-
-        if (dto.HireDate.HasValue)
-            employee.HireDate = dto.HireDate.Value;
-
-        if (dto.Salary.HasValue)
-            employee.Salary = dto.Salary.Value;
-
-        if (dto.DepartmentId.HasValue)
-            employee.DepartmentId = dto.DepartmentId.Value;
-
-        if (dto.Status.HasValue)
-            employee.Status = dto.Status.Value;
-
-        // Update through repository
+        // NOTE: UpdatedAt, UpdatedBy set automatically by Interceptor
         _unitOfWork.Employees.Update(employee);
-
-        // Save through UnitOfWork
         await _unitOfWork.SaveChangesAsync();
 
-        // Reload with department
-        var updatedEmployees = await _unitOfWork.Employees
-            .FindWithIncludeAsync(
-                e => e.Id == id,
-                e => e.Department
-            );
+        _logger.LogInformation("Employee {EmployeeId} updated successfully", id);
 
-        return MapToDto(updatedEmployees.First());
+        // Reload for response
+        var updatedEmployee = await _unitOfWork.Employees
+            .GetByIdWithIncludeAsync(id, trackChanges: false, e => e.Department);
+
+        return MapToDto(updatedEmployee!);
     }
 
+    /// <summary>
+    /// Delete employee (soft delete via Interceptor)
+    ///
+    /// HOW IT WORKS:
+    /// 1. We call Delete() on repository
+    /// 2. Repository calls _dbSet.Remove() (marks as Deleted)
+    /// 3. Interceptor intercepts SaveChanges
+    /// 4. Interceptor converts Deleted → Modified with IsDeleted=true
+    /// 5. Database UPDATE (not DELETE) is executed
+    /// </summary>
     public async Task<bool> DeleteAsync(int id)
     {
-        var employee = await _unitOfWork.Employees.GetByIdAsync(id);
+        _logger.LogInformation("Deleting employee {EmployeeId}", id);
 
-        if (employee == null || employee.IsDeleted)
+        // Need tracking for delete operation
+        var employee = await _unitOfWork.Employees.GetByIdAsync(id, trackChanges: true);
+
+        if (employee == null)
+        {
+            _logger.LogWarning("Employee {EmployeeId} not found for deletion", id);
             return false;
+        }
 
-        // Soft delete
-        employee.IsDeleted = true;
-
-        _unitOfWork.Employees.Update(employee);
+        // Just call Delete - Interceptor handles soft delete
+        // Sets IsDeleted=true, DeletedAt, DeletedBy automatically
+        _unitOfWork.Employees.Delete(employee);
         await _unitOfWork.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Employee {EmployeeId} soft-deleted successfully by interceptor",
+            id);
 
         return true;
     }
 
     public async Task<bool> ExistsAsync(int id)
     {
-        return await _unitOfWork.Employees
-            .AnyAsync(e => e.Id == id && !e.IsDeleted);
+        return await _unitOfWork.Employees.ExistsAsync(id);
     }
 
     public async Task<bool> EmailExistsAsync(string email, int? excludeId = null)
@@ -204,11 +272,10 @@ public class EmployeeService : IEmployeeService
         if (excludeId.HasValue)
         {
             return await _unitOfWork.Employees
-                .AnyAsync(e => e.Email == email && !e.IsDeleted && e.Id != excludeId.Value);
+                .AnyAsync(e => e.Email == email && e.Id != excludeId.Value);
         }
 
-        return await _unitOfWork.Employees
-            .AnyAsync(e => e.Email == email && !e.IsDeleted);
+        return await _unitOfWork.Employees.AnyAsync(e => e.Email == email);
     }
 
     // ==================== MAPPING ====================

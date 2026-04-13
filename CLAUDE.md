@@ -84,6 +84,9 @@ EmployeeManagement/
 ├── EmployeeManagement.sln
 ├── CLAUDE.md
 ├── .gitignore
+├── Dockerfile              # Multi-stage Docker build
+├── docker-compose.yml      # Container orchestration
+├── .dockerignore           # Docker context exclusions
 ├── src/
 │   ├── EmployeeManagement.API/
 │   │   ├── Controllers/
@@ -228,11 +231,107 @@ git push origin main
 - Day 3: Repository + Unit of Work Pattern ✅
 - Day 4: Angular Enterprise Frontend ✅
 - Day 5: FluentValidation + Global Error Handling ✅
-- Day 6: Unit Testing (xUnit + Moq) ← NEXT
-- Day 7: Advanced (Pagination, File Upload, Caching, Docker)
+- Day 6: EF Core Advanced + Enterprise Patterns ✅
+- Day 7: Docker Containerization ✅ (NEW!)
+- Day 8: CI/CD Pipeline ← NEXT
+
+### Day 6: EF Core Advanced + Enterprise Patterns (NEW!)
+- **Global Query Filters** - Automatic soft delete filtering
+- **Audit Fields** - CreatedBy, UpdatedBy, DeletedBy with timestamps
+- **EF Core Interceptors** - AuditableEntityInterceptor for automatic audit
+- **Concurrency Handling** - RowVersion/Timestamp for optimistic concurrency
+- **AsNoTracking** - Performance optimization for read-only queries
+- **Options Pattern** - Strongly-typed configuration (JwtSettings, CorsSettings)
+- **Serilog** - Structured logging with enrichers and multiple sinks
+- **ICurrentUserService** - Abstract current user access from HttpContext
+
+**New Files Created:**
+```
+src/EmployeeManagement.Core/
+├── Interfaces/Services/ICurrentUserService.cs
+└── Settings/
+    ├── JwtSettings.cs
+    └── CorsSettings.cs
+
+src/EmployeeManagement.Infrastructure/
+├── Data/Interceptors/AuditableEntityInterceptor.cs
+└── Services/CurrentUserService.cs
+```
+
+**Updated Files:**
+```
+- BaseEntity.cs (added audit fields + RowVersion)
+- AppDbContext.cs (Global Query Filters + RowVersion config)
+- GenericRepository.cs (AsNoTracking + IgnoreQueryFilters)
+- IGenericRepository.cs (trackChanges parameter)
+- EmployeeService.cs (structured logging + new patterns)
+- DepartmentService.cs (structured logging + new patterns)
+- GlobalExceptionMiddleware.cs (DbUpdateConcurrencyException handling)
+- Program.cs (Serilog + Options Pattern + Interceptor registration)
+- appsettings.json (Serilog + settings sections)
+```
+
+### Day 7: Docker Containerization (NEW!)
+- **Multi-Stage Dockerfile** - Build with SDK, run with runtime (7x smaller image)
+- **docker-compose.yml** - Orchestrate API + SQL Server containers
+- **.dockerignore** - Exclude unnecessary files from build context
+- **Health Checks** - `/health` and `/ready` endpoints for container monitoring
+- **Automatic Migrations** - Run EF migrations on container startup
+- **Non-root User** - Security best practice for containers
+- **Volume Persistence** - SQL Server data survives container restarts
+
+**New Files Created:**
+```
+EmployeeManagement/
+├── Dockerfile              # Multi-stage build for .NET 10
+├── docker-compose.yml      # API + SQL Server orchestration
+└── .dockerignore           # Exclude files from Docker context
+```
+
+**Docker Architecture:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    docker-compose                            │
+│  ┌─────────────────────┐    ┌─────────────────────────────┐ │
+│  │  employeemanagement │    │  employeemanagement-db      │ │
+│  │  -api               │───▶│  (Azure SQL Edge)           │ │
+│  │  Port: 5136:8080    │    │  Port: 1434:1433            │ │
+│  │  .NET 10 Runtime    │    │  Volume: sqlserver-data     │ │
+│  └─────────────────────┘    └─────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Docker Commands:**
+```bash
+# Build and start all containers
+cd /Users/wahabmalikawan/Documents/EmployeeManagement
+docker-compose up -d
+
+# View logs
+docker logs employeemanagement-api
+docker logs employeemanagement-db
+
+# Stop containers
+docker-compose down
+
+# Rebuild after code changes
+docker-compose build api && docker-compose up -d
+
+# View running containers
+docker ps
+
+# Test health endpoint
+curl http://localhost:5136/health
+```
+
+**Interview Q&A - Docker:**
+- Q: "What is Docker?" A: "Containerization platform that packages app + dependencies into portable units"
+- Q: "Why multi-stage builds?" A: "Use SDK to build (~700MB), runtime to run (~100MB) = 7x smaller final image"
+- Q: "How handle DB migrations in Docker?" A: "Run on startup, init container, or CI/CD pipeline"
+- Q: "How secure containers?" A: "Non-root user, minimal base images, scan for vulnerabilities"
 
 ## Resume Instructions
-Tell Claude: "Let's start Day 6 - Unit Testing with xUnit and Moq"
+Tell Claude: "Let's start Day 8 - CI/CD Pipeline with GitHub Actions"
 
 ## Key Patterns Learned
 1. **Clean Architecture** - Separation of concerns (API, Core, Infrastructure)
@@ -247,3 +346,13 @@ Tell Claude: "Let's start Day 6 - Unit Testing with xUnit and Moq"
 10. **Global Exception Handling** - Centralized error handling middleware
 11. **Custom Exceptions** - Domain-specific exception types with HTTP status codes
 12. **Standardized Error Responses** - Consistent API error format
+13. **Global Query Filters** - Automatic filtering (soft delete) on all queries
+14. **EF Core Interceptors** - Cross-cutting concerns (audit) without code duplication
+15. **Optimistic Concurrency** - RowVersion prevents lost updates
+16. **AsNoTracking** - Performance optimization for read-only operations
+17. **Options Pattern** - Type-safe configuration with validation
+18. **Structured Logging** - Serilog with searchable properties
+19. **Multi-Stage Docker Builds** - Separate build and runtime stages for smaller images
+20. **Docker Compose** - Multi-container orchestration with networking and volumes
+21. **Container Health Checks** - Liveness and readiness probes for monitoring
+22. **Database Migrations in Containers** - Automatic schema updates on startup
